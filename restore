@@ -1,0 +1,61 @@
+#!/bin/bash
+
+#  variables
+
+   #  file name with inode
+
+         filename=$1
+
+   #  original file name without inode
+
+         orgFilename=$(grep "${filename}" $HOME/.restore.info | cut -d"_" -f1)
+
+   # original full pathway of file
+
+         orgPath=$(grep "${filename}" $HOME/.restore.info | cut -d":" -f2)
+ 
+   #  original directory pathway
+    
+         orgDir=$(dirname "$orgPath")
+
+
+#no argument provided
+
+if [ $# -eq 0 ] 
+then
+  echo "No filename provided" 1>&2
+  exit 1
+fi
+
+#  if file does not exist in recycle bin
+
+if [ ! -e $HOME/recyclebin/${filename} ]
+then
+  echo "File does not exist" 1>&2
+  exit 1
+fi
+
+#  if file of same name already exist in targeted directory
+
+if [ -e "${orgPath}" ]
+then
+  echo "File of same name exist. Do you want to overwrite? y/n"
+  read ans
+  if [[ ! "$ans" =~ ^[Yy].* ]]
+  then
+    exit 0
+  fi
+fi
+
+
+
+mkdir $orgDir 2>/dev/null
+
+
+#  restore file back to original path
+
+mv "$HOME/recyclebin/${filename}" "${orgPath}"
+sed -i "/${filename}/d" $HOME/.restore.info
+
+exit 0
+

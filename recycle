@@ -1,0 +1,114 @@
+#!/bin/bash
+
+
+#create recyclebin directory in home directory
+
+mkdir $HOME/recyclebin 2>/dev/null
+
+
+
+function recycle_file() {
+
+  inode=$(ls -i ${fileName} | cut -d" " -f1)                          # get inode of file
+
+  path=$(find $(pwd) -name ${fileName})                               # add orig absolute path to restore.info
+  echo "${fileName}_${inode}:${path}" >> $HOME/.restore.info
+
+  newFileName=${fileName}"_"$inode                                    # rename file
+  mv ${fileName} $newFileName
+
+  mv -t $HOME/recyclebin $newFileName                                 # rename and move file into recyclebin
+
+}
+
+
+
+function remove_dir() {
+
+  dir=$1
+  path=$(find $(pwd) -name $1)
+  files=$(ls "${path}")
+
+  cd $path
+  
+  for fileName in ${files}
+  do
+    recycle_file
+  done
+ 
+  cd .. 
+  rmdir ${dir}
+
+}
+
+
+while getopts :ivr: opt
+do
+  case $opt in
+    i)  echo "Recycle file?"
+        read ans
+        if [[ ! "$ans" =~ ^[Yy].* ]]
+        then
+          exit 0
+        fi
+        ;;
+
+    v)  echo "File recycled"
+        ;;
+
+    r)  dir="$OPTARG"
+        remove_dir $dir
+        exit 0
+        ;;
+
+   \?)  echo "Invalid option" 1>&2
+        exit 1
+        ;;
+  esac
+done
+
+shift "$(($OPTIND -1))"
+
+#  no argument passed
+    if [ $# -eq 0 ]
+    then
+      echo "No filename provided" 1>&2
+      exit 1
+    fi
+
+
+for fileName in $@
+do
+
+#  file does not exist
+
+    if [ ! -e ${fileName} ]
+    then
+      echo "File does not exist" 1>&2
+      exit 1
+    fi
+
+#  argument is a directory instead of a file
+
+    if [ -d ${fileName} ]
+    then
+      echo "Directory name provided. Please provide a file name" 1>&2
+      exit 1
+    fi
+
+#  check if user is trying to delete this script
+
+    if [ ${fileName} -ef "$HOME/project/recycle" ]
+    then
+      echo "Attempting to delete script - operation aborted" 1>&2
+      exit 2
+    fi
+
+
+  recycle_file
+
+done
+
+
+exit 0
+
